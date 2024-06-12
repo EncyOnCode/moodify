@@ -25,9 +25,13 @@ class SpotifyService {
         .map((item) => Track.fromJson(item['track'] as Map<String, dynamic>))
         .toList();
 
+    final List<String> trackIds = tracks.map((track) => track.id).toList();
+    final audioFeatures = await _getAudioFeatures(trackIds);
+
     final List<Track> filteredTracks = [];
-    for (final track in tracks) {
-      final valence = await getTrackValence(track.id);
+    for (var i = 0; i < tracks.length; i++) {
+      final track = tracks[i];
+      final valence = audioFeatures[i]['valence'] as double;
       if (valence < 0.3) {
         filteredTracks.add(track);
       }
@@ -36,8 +40,18 @@ class SpotifyService {
     return filteredTracks;
   }
 
-  Future<double> getTrackValence(String trackId) async {
-    final response = await _dio.get<dynamic>('$_baseUrl/audio-features/$trackId');
-    return response.data['valence'] as double;
+  Future<List<Map<String, dynamic>>> _getAudioFeatures(
+    List<String> trackIds,
+  ) async {
+    final idsString = trackIds.join(',');
+    final response = await _dio.get<dynamic>(
+      '$_baseUrl/audio-features',
+      queryParameters: {'ids': idsString},
+    );
+
+    final audioFeatures = response.data['audio_features'] as List;
+    return audioFeatures
+        .map((audioFeature) => audioFeature as Map<String, dynamic>)
+        .toList();
   }
 }
