@@ -4,7 +4,7 @@ import 'presentation/screens/playlists_screen.dart';
 
 void main() {
   runApp(
-     const MaterialApp(
+    const MaterialApp(
       home: PlaylistScreen(),
     ),
   );

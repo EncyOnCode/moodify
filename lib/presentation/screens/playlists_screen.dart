@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../../data/models/track_model.dart';
 import '../../domain/services/spotify_service.dart';
+import 'auth_webview_page.dart';
 
 class PlaylistScreen extends StatelessWidget {
   const PlaylistScreen({super.key});
@@ -9,11 +11,11 @@ class PlaylistScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-
       body: PlaylistPage(),
     );
   }
 }
+
 
 class PlaylistPage extends StatefulWidget {
   const PlaylistPage({super.key});
@@ -24,54 +26,79 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage> {
   final SpotifyService _spotifyService = SpotifyService();
-  final TextEditingController _controller = TextEditingController();
   Future<List<Track>>? _tracksFuture;
+  String _selectedMood = 'joy';
+  List<Track> _tracks = [];
 
-  void _fetchTracks() {
-    final playlistUrl = _controller.text;
-    final playlistId = _extractPlaylistId(playlistUrl);
-    if (playlistId != null) {
-      setState(() {
-        _tracksFuture = _spotifyService.getPlaylistTracks(playlistId);
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid playlist URL')),
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _authenticate());
   }
 
-  String? _extractPlaylistId(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri != null && uri.host == 'open.spotify.com' && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'playlist') {
-      return uri.pathSegments[1];
-    } else if (uri != null && uri.host == 'spotify' && uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'playlist') {
-      return uri.pathSegments[1];
+  void _authenticate() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => SpotifyAuth(
+          onAccessTokenReceived: (accessToken) {
+            _spotifyService.updateAccessToken(accessToken);
+            _fetchTracks();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _fetchTracks() {
+    setState(() {
+      _tracksFuture = _spotifyService.getDaylistTracks(_selectedMood);
+      _tracksFuture?.then((tracks) {
+        setState(() {
+          _tracks = tracks;
+        });
+      });
+    });
+  }
+
+  Future<void> _createPlaylist() async {
+    final date = DateTime.now().toString().split(' ')[0];
+    final playlistName = 'Daylist $_selectedMood $date';
+    final playlistId = await _spotifyService.createPlaylist(playlistName);
+
+    if (playlistId != null) {
+      await _spotifyService.addTracksToPlaylist(playlistId, _tracks.map((track) => track.id).toList());
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist created and tracks added')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create playlist')));
     }
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spotify Playlist'),
+        title: const Text('Spotify Daylist'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                labelText: 'Enter Spotify Playlist URL',
-              ),
+            DropdownButton<String>(
+              value: _selectedMood,
+              items: const [
+                DropdownMenuItem(value: 'joy', child: Text('Joy')),
+                DropdownMenuItem(value: 'neutral', child: Text('Neutral')),
+                DropdownMenuItem(value: 'sad', child: Text('Sad')),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedMood = value!;
+                  _fetchTracks();
+                });
+              },
             ),
             const SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: _fetchTracks,
-              child: const Text('Fetch Tracks'),
-            ),
             Expanded(
               child: FutureBuilder<List<Track>>(
                 future: _tracksFuture,
@@ -104,6 +131,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   }
                 },
               ),
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: _createPlaylist,
+              child: const Text('Create Playlist'),
             ),
           ],
         ),
