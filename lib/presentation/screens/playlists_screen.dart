@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -66,10 +67,21 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final playlistId = await _spotifyService.createPlaylist(playlistName);
 
     if (playlistId != null) {
-      await _spotifyService.addTracksToPlaylist(playlistId, _tracks.map((track) => track.id).toList());
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist created and tracks added')));
+      await _spotifyService.addTracksToPlaylist(
+        playlistId,
+        _tracks.map((track) => track.id).toList(),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Playlist created and tracks added'),
+        ),
+      );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create playlist')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to create playlist'),
+        ),
+      );
     }
   }
 
@@ -80,27 +92,47 @@ class _PlaylistPageState extends State<PlaylistPage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        title: Text('Spotify Daylist', style: textTheme.titleLarge),
+        title: Text('Moodify', style: textTheme.titleLarge),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            DropdownButton<String>(
-              value: _selectedMood,
-              dropdownColor: Theme.of(context).cardColor,
-              style: textTheme.titleMedium,
-              items: const[
-                DropdownMenuItem(value: 'joy', child: Text('Joy')),
-                DropdownMenuItem(value: 'neutral', child: Text('Neutral')),
-                DropdownMenuItem(value: 'sad', child: Text('Sad')),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedMood = value!;
-                  _applyFilter();
-                });
-              },
+            Text(
+              "What's your mood today?",
+              style: textTheme.titleLarge,
+            ),
+            const SizedBox(
+              height: 8,
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(8),
+                border:
+                    Border.all(color: Theme.of(context).primaryColor, width: 1),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedMood,
+                    dropdownColor: Theme.of(context).cardColor,
+                    style: textTheme.titleMedium,
+                    items: const [
+                      DropdownMenuItem(value: 'joy', child: Text('Joy')),
+                      DropdownMenuItem(value: 'neutral', child: Text('Neutral')),
+                      DropdownMenuItem(value: 'sad', child: Text('Sad')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedMood = value!;
+                        _applyFilter();
+                      });
+                    },
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 16.0),
             Expanded(
@@ -110,19 +142,31 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}', style: textTheme.titleMedium));
+                    return Center(
+                      child: Text(
+                        'Error: ${snapshot.error}',
+                        style: textTheme.titleMedium,
+                      ),
+                    );
                   } else {
                     return ListView.builder(
                       itemCount: _tracks.length,
                       itemBuilder: (context, index) {
                         final track = _tracks[index];
-                        final artistNames = track.artists.map((artist) => artist.name).join(', ');
+                        final artistNames = track.artists
+                            .map((artist) => artist.name)
+                            .join(', ');
                         return Card(
                           color: Theme.of(context).cardColor,
                           child: ListTile(
-                            leading: Icon(Icons.music_note, color: Theme.of(context).primaryColor),
-                            title: Text(track.name, style: textTheme.titleLarge),
-                            subtitle: Text(artistNames, style: textTheme.titleMedium),
+                            leading: Icon(
+                              Icons.music_note,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            title:
+                                Text(track.name, style: textTheme.titleLarge),
+                            subtitle:
+                                Text(artistNames, style: textTheme.titleMedium),
                             onTap: () {
                               // Открытие ссылки на трек
                               if (kDebugMode) {
