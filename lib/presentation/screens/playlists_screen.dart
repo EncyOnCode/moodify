@@ -38,7 +38,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   void _authenticate() {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => SpotifyAuth(
           onAccessTokenReceived: (accessToken) {
             _spotifyService.updateAccessToken(accessToken);
