@@ -6,6 +6,8 @@ class SpotifyService {
   final String _baseUrl = 'https://api.spotify.com/v1';
   String _accessToken = '';
   String _userId = '';
+  List<Track> _allTracks = [];
+  List<Map<String, dynamic>> _audioFeatures = [];
 
   void updateAccessToken(String token) {
     _accessToken = token;
@@ -18,7 +20,7 @@ class SpotifyService {
     _userId = response.data['id'] as String;
   }
 
-  Future<List<Track>> getDaylistTracks(String mood) async {
+  Future<void> fetchDaylistTracks() async {
     const String playlistId = '37i9dQZF1EP6YuccBxUcC1';
     final response = await _dio.get<dynamic>('$_baseUrl/playlists/$playlistId/tracks',
         queryParameters: {
@@ -26,15 +28,17 @@ class SpotifyService {
         ,},);
 
     final items = response.data['items'] as List;
-    final tracks = items.map((item) => Track.fromJson(item['track'] as Map<String, dynamic>)).toList();
+    _allTracks = items.map((item) => Track.fromJson(item['track'] as Map<String, dynamic>)).toList();
 
-    final List<String> trackIds = tracks.map((track) => track.id).toList();
-    final audioFeatures = await _getAudioFeatures(trackIds);
+    final List<String> trackIds = _allTracks.map((track) => track.id).toList();
+    _audioFeatures = await _getAudioFeatures(trackIds);
+  }
 
+  List<Track> filterTracksByMood(String mood) {
     final List<Track> filteredTracks = [];
-    for (var i = 0; i < tracks.length; i++) {
-      final track = tracks[i];
-      final valence = audioFeatures[i]['valence'] as double;
+    for (var i = 0; i < _allTracks.length; i++) {
+      final track = _allTracks[i];
+      final valence = _audioFeatures[i]['valence'] as double;
 
       if (mood == 'joy' && valence > 0.6) {
         filteredTracks.add(track);
