@@ -16,17 +16,16 @@ class PlaylistScreen extends StatelessWidget {
   }
 }
 
-
 class PlaylistPage extends StatefulWidget {
   const PlaylistPage({super.key});
 
   @override
-  _PlaylistPageState createState() => _PlaylistPageState();
+  State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
 class _PlaylistPageState extends State<PlaylistPage> {
   final SpotifyService _spotifyService = SpotifyService();
-  Future<List<Track>>? _tracksFuture;
+  Future<void>? _initialLoad;
   String _selectedMood = 'joy';
   List<Track> _tracks = [];
 
@@ -43,21 +42,21 @@ class _PlaylistPageState extends State<PlaylistPage> {
         builder: (context) => SpotifyAuth(
           onAccessTokenReceived: (accessToken) {
             _spotifyService.updateAccessToken(accessToken);
-            _fetchTracks();
+            _initialLoad = _fetchAndFilterTracks();
           },
         ),
       ),
     );
   }
 
-  void _fetchTracks() {
+  Future<void> _fetchAndFilterTracks() async {
+    await _spotifyService.fetchDaylistTracks();
+    _applyFilter();
+  }
+
+  void _applyFilter() {
     setState(() {
-      _tracksFuture = _spotifyService.getDaylistTracks(_selectedMood);
-      _tracksFuture?.then((tracks) {
-        setState(() {
-          _tracks = tracks;
-        });
-      });
+      _tracks = _spotifyService.filterTracksByMood(_selectedMood);
     });
   }
 
@@ -76,9 +75,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spotify Daylist'),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        title: Text('Spotify Daylist', style: textTheme.titleLarge),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -86,7 +88,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
           children: [
             DropdownButton<String>(
               value: _selectedMood,
-              items: const [
+              dropdownColor: Theme.of(context).cardColor,
+              style: textTheme.titleMedium,
+              items: const[
                 DropdownMenuItem(value: 'joy', child: Text('Joy')),
                 DropdownMenuItem(value: 'neutral', child: Text('Neutral')),
                 DropdownMenuItem(value: 'sad', child: Text('Sad')),
@@ -94,40 +98,41 @@ class _PlaylistPageState extends State<PlaylistPage> {
               onChanged: (value) {
                 setState(() {
                   _selectedMood = value!;
-                  _fetchTracks();
+                  _applyFilter();
                 });
               },
             ),
             const SizedBox(height: 16.0),
             Expanded(
-              child: FutureBuilder<List<Track>>(
-                future: _tracksFuture,
+              child: FutureBuilder<void>(
+                future: _initialLoad,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (snapshot.hasData) {
-                    final tracks = snapshot.data!;
+                    return Center(child: Text('Error: ${snapshot.error}', style: textTheme.titleMedium));
+                  } else {
                     return ListView.builder(
-                      itemCount: tracks.length,
+                      itemCount: _tracks.length,
                       itemBuilder: (context, index) {
-                        final track = tracks[index];
+                        final track = _tracks[index];
                         final artistNames = track.artists.map((artist) => artist.name).join(', ');
-                        return ListTile(
-                          title: Text(track.name),
-                          subtitle: Text(artistNames),
-                          onTap: () {
-                            // Открытие ссылки на трек
-                            if (kDebugMode) {
-                              print('Track URL: ${track.href}');
-                            }
-                          },
+                        return Card(
+                          color: Theme.of(context).cardColor,
+                          child: ListTile(
+                            leading: Icon(Icons.music_note, color: Theme.of(context).primaryColor),
+                            title: Text(track.name, style: textTheme.titleLarge),
+                            subtitle: Text(artistNames, style: textTheme.titleMedium),
+                            onTap: () {
+                              // Открытие ссылки на трек
+                              if (kDebugMode) {
+                                print('Track URL: ${track.href}');
+                              }
+                            },
+                          ),
                         );
                       },
                     );
-                  } else {
-                    return const Center(child: Text('No data'));
                   }
                 },
               ),
@@ -135,7 +140,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             const SizedBox(height: 16.0),
             ElevatedButton(
               onPressed: _createPlaylist,
-              child: const Text('Create Playlist'),
+              child: Text('Create Playlist', style: textTheme.labelLarge),
             ),
           ],
         ),
